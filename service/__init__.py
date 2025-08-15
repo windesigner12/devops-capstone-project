@@ -22,7 +22,7 @@ from service import routes
 
 # Import the routes After the Flask app is created
 # pylint: disable=wrong-import-position, cyclic-import, wrong-import-order
-from service import routes, models  # noqa: F401 E402
+from service import models  # noqa: F401 E402
 
 # pylint: disable=wrong-import-position
 from service.common import error_handlers, cli_commands  # noqa: F401 E402
