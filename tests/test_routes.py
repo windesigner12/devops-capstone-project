@@ -124,3 +124,59 @@ class TestAccountService(TestCase):
         self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
     # ADD YOUR TEST CASES HERE ...
+
+       ######################################################################
+    #  LIST, READ, UPDATE, DELETE TEST CASES
+    ######################################################################
+
+    def test_list_accounts(self):
+        """It should List all Accounts"""
+        self._create_accounts(3)
+        resp = self.client.get(BASE_URL, content_type="application/json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        data = resp.get_json()
+        self.assertEqual(len(data), 3)
+        # Verify each returned account has the required fields
+        for account in data:
+            self.assertIn("id", account)
+            self.assertIn("name", account)
+            self.assertIn("email", account)
+
+    def test_get_account(self):
+        """It should Read a single Account"""
+        account = self._create_accounts(1)[0]
+        resp = self.client.get(f"{BASE_URL}/{account.id}", content_type="application/json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        data = resp.get_json()
+        self.assertEqual(data["id"], account.id)
+        self.assertEqual(data["name"], account.name)
+        self.assertEqual(data["email"], account.email)
+
+    def test_update_account(self):
+        """It should Update an existing Account"""
+        account = self._create_accounts(1)[0]
+        updated_data = {
+            "name": "Updated Name",
+            "email": "updated@example.com",
+            "address": "Updated Address",
+            "phone_number": "9876543210"
+        }
+        resp = self.client.put(
+            f"{BASE_URL}/{account.id}",
+            json=updated_data,
+            content_type="application/json"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        data = resp.get_json()
+        self.assertEqual(data["name"], "Updated Name")
+        self.assertEqual(data["email"], "updated@example.com")
+
+    def test_delete_account(self):
+        """It should Delete an Account"""
+        account = self._create_accounts(1)[0]
+        resp = self.client.delete(f"{BASE_URL}/{account.id}", content_type="application/json")
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify the account is actually deleted
+        resp = self.client.get(f"{BASE_URL}/{account.id}", content_type="application/json")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
