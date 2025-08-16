@@ -25,7 +25,7 @@ spec:
 
     - name: clone
       workspaces:
-        - name: output
+        - name: source
           workspace: pipeline-workspace          
       taskRef:
         name: git-clone
