@@ -25,7 +25,7 @@ spec:
 
     - name: clone
       workspaces:
-        - name: source
+        - name: output
           workspace: pipeline-workspace          
       taskRef:
         name: git-clone
@@ -36,6 +36,7 @@ spec:
           value: $(params.branch)
       runAfter:
         - init
+
     - name: lint
       workspaces:
         - name: output
