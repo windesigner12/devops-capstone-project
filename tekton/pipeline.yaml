@@ -18,14 +18,14 @@ spec:
   tasks:
     - name: init
       workspaces:
-        - name: source
+        - name: output
           workspace: pipeline-workspace          
       taskRef:
         name: cleanup
 
     - name: clone
       workspaces:
-        - name: source
+        - name: output
           workspace: pipeline-workspace          
       taskRef:
         name: git-clone
@@ -38,7 +38,7 @@ spec:
         - init
     - name: lint
       workspaces:
-        - name: source
+        - name: output
           workspace: pipeline-workspace
       taskRef:
         name: flake8
