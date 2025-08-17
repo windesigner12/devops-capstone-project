@@ -123,80 +123,160 @@
 #         pip install flake8
 #         echo "Running flake8 with args: $(params.args[*])"
 #         flake8 $(params.args[*]) .
----
+# ---
+# apiVersion: tekton.dev/v1beta1
+# kind: Pipeline
+# metadata:
+#   name: cd-pipeline
+# spec:
+#   workspaces:
+#     - name: pipeline-workspace
+#   params:
+#     - name: repo-url
+#       type: string
+#     - name: branch
+#       type: string
+#       default: main
+#   tasks:
+#     - name: clone
+#       taskRef:
+#         name: git-clone
+#         kind: Task
+#       workspaces:
+#         - name: output
+#           workspace: pipeline-workspace
+#       params:
+#         - name: url
+#           value: $(params.repo-url)
+#         - name: revision
+#           value: $(params.branch)
+
+#     - name: lint
+#       taskRef:
+#         name: flake8
+#       workspaces:
+#         - name: output
+#           workspace: pipeline-workspace
+#       params:
+#         - name: image
+#           value: "python:3.9-slim"
+#         - name: args
+#           value: "--count --max-complexity=10 --max-line-length=127 --statistics"
+
+#     - name: tests
+#       workspaces:
+#         - name: source
+#           workspace: pipeline-workspace
+#       taskRef:
+#         name: nose
+#       params:
+#       - name: database_uri
+#         value: "sqlite:///test.db"
+#       - name: args
+#         value: "-v --with-spec --spec-color"
+#       runAfter:
+#         - clone
+#     - name: build
+#       workspaces:
+#         - name: source
+#           workspace: pipeline-workspace
+#       taskRef:
+#         name: buildah
+#         kind: ClusterTask
+#       params:
+#       - name: IMAGE
+#         value: $(params.build-image)
+#       runAfter:
+#         - tests
+#         - lint
+# ---
+# apiVersion: tekton.dev/v1beta1
+# kind: Task
+# metadata:
+#   name: flake8
+# spec:
+#   workspaces:
+#     - name: output
+#   params:
+#     - name: image
+#       type: string
+#       default: "python:3.9-slim"
+#     - name: args
+#       type: string
+#       default: ""
+#   steps:
+#     - name: run-flake8
+#       image: $(params.image)
+#       workingDir: $(workspaces.output.path)
+#       script: |
+#         #!/bin/sh
+#         pip install flake8
+#         echo "Running flake8 with args: $(params.args)"
+#         flake8 $(params.args) .
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: cd-pipeline
+  namespace: sn-labs-winshelo
 spec:
-  workspaces:
-    - name: pipeline-workspace
   params:
     - name: repo-url
       type: string
     - name: branch
       type: string
       default: main
+    - name: build-image    # 👈 add this parameter
+      type: string
+      description: The full image reference to build and push
+  workspaces:
+    - name: pipeline-workspace
   tasks:
     - name: clone
       taskRef:
-        name: git-clone
         kind: Task
-      workspaces:
-        - name: output
-          workspace: pipeline-workspace
+        name: git-clone
       params:
         - name: url
           value: $(params.repo-url)
         - name: revision
           value: $(params.branch)
+      workspaces:
+        - name: output
+          workspace: pipeline-workspace
 
     - name: lint
       taskRef:
         name: flake8
+      params:
+        - name: image
+          value: python:3.9-slim
+        - name: args
+          value: --count --max-complexity=10 --max-line-length=127 --statistics
       workspaces:
         - name: output
           workspace: pipeline-workspace
-      params:
-        - name: image
-          value: "python:3.9-slim"
-        - name: args
-          value: "--count --max-complexity=10 --max-line-length=127 --statistics"
 
     - name: tests
-      workspaces:
-        - name: source
-          workspace: pipeline-workspace
+      runAfter: [clone]
       taskRef:
         name: nose
       params:
-      - name: database_uri
-        value: "sqlite:///test.db"
-      - name: args
-        value: "-v --with-spec --spec-color"
-      runAfter:
-        - clone
----
-apiVersion: tekton.dev/v1beta1
-kind: Task
-metadata:
-  name: flake8
-spec:
-  workspaces:
-    - name: output
-  params:
-    - name: image
-      type: string
-      default: "python:3.9-slim"
-    - name: args
-      type: string
-      default: ""
-  steps:
-    - name: run-flake8
-      image: $(params.image)
-      workingDir: $(workspaces.output.path)
-      script: |
-        #!/bin/sh
-        pip install flake8
-        echo "Running flake8 with args: $(params.args)"
-        flake8 $(params.args) .
+        - name: database_uri
+          value: sqlite:///test.db
+        - name: args
+          value: -v --with-spec --spec-color
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+
+    - name: build
+      runAfter: [tests, lint]
+      taskRef:
+        kind: ClusterTask
+        name: buildah
+      params:
+        - name: IMAGE
+          value: $(params.build-image)  
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
